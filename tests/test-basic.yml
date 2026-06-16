@@ -1,0 +1,37 @@
+name: Test basic usage - find and create symlink
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake action path structure
+        id: setup
+        run: |
+          # Create a directory structure that matches org/repo pattern
+          # The action traverses parents looking for grandparent==org, parent==repo
+          FAKE_BASE="/tmp/actions-test"
+          FAKE_PATH="$FAKE_BASE/wei18/local-composite-action/abc123def/action"
+          mkdir -p "$FAKE_PATH"
+          echo "fake_path=$FAKE_PATH" >> "$GITHUB_OUTPUT"
+
+      - id: action
+        uses: .
+        with:
+          action_repository: wei18/local-composite-action
+          action_path: /tmp/actions-test/wei18/local-composite-action/abc123def/action
+
+      - name: Assert symlink was created
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/wei18/local-composite-action"
+          echo "Checking symlink at: $SYMLINK_PATH"
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH"
+            ls -la "$ROOT_DIR/wei18/" || true
+            exit 1
+          fi
+          echo "PASS: symlink exists at $SYMLINK_PATH"
+          ls -la "$SYMLINK_PATH"
