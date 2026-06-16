@@ -1,0 +1,46 @@
+name: Test find and create symlink
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create fake action directory structure
+        run: |
+          # Create a directory structure that mimics how GitHub Actions caches actions:
+          # /tmp/actions/myorg/myrepo/abc123/path/to/action
+          mkdir -p /tmp/actions/myorg/myrepo/abc123/path/to/action
+          echo "fake action content" > /tmp/actions/myorg/myrepo/abc123/path/to/action/action.yml
+
+      - id: action
+        uses: .
+        with:
+          action_path: "/tmp/actions/myorg/myrepo/abc123/path/to/action"
+          action_repository: "myorg/myrepo"
+
+      - name: Assert symlink was created and points to correct directory
+        run: |
+          # The action computes: ROOT_DIR = dirname(GITHUB_WORKSPACE)
+          # SYMLINK_PATH = ROOT_DIR / ACTION_REPOSITORY
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/myorg/myrepo"
+          echo "Checking symlink at: $SYMLINK_PATH"
+
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH"
+            ls -la "$ROOT_DIR/myorg/" 2>/dev/null || echo "(directory $ROOT_DIR/myorg does not exist)"
+            exit 1
+          fi
+          echo "PASS: symlink exists at $SYMLINK_PATH"
+
+          ACTUAL_TARGET="$(readlink -f "$SYMLINK_PATH")"
+          EXPECTED_TARGET="/tmp/actions/myorg/myrepo/abc123"
+          echo "actual target: $ACTUAL_TARGET"
+          echo "expected target: $EXPECTED_TARGET"
+          if [ "$ACTUAL_TARGET" != "$EXPECTED_TARGET" ]; then
+            echo "FAIL: symlink points to wrong target"
+            exit 1
+          fi
+          echo "PASS: symlink points to correct target"
