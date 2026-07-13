@@ -1,0 +1,42 @@
+name: Local Composite Action Uses
+description: Replaces github.action_path references in a composite action
+inputs:
+  composite_action_path:
+    description: >
+      The path where an action is located. Please input: `GITHUB_ACTION_PATH`
+
+    required: true
+  composite_action_repository:
+    description: >
+      This is the owner and repository name of the action. Please input: `GITHUB_ACTION_REPOSITORY`
+
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+    - shell: bash
+      env:
+        COMPOSITE_ACTION_PATH: ${{ inputs.composite_action_path }}
+        COMPOSITE_ACTION_REPOSITORY: ${{ inputs.composite_action_repository }}
+        GITHUB_WORKSPACE: ${{ github.workspace }}
+      run: "echo \"::group::\U0001F517 Starting resolve-action-symlink\"\nbash \"$GITHUB_ACTION_PATH\"/resolve-action-symlink.bash\necho \"::endgroup::\"\n"
+branding:
+  icon: 'arrow-right'
+  color: 'green'

@@ -1,16 +1,66 @@
-# wei18/local-composite-action
 
-Find and create symlink to the action repository path based on the provided inputs.
+# 📦 local-composite-action
 
-Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/wei18/local-composite-action](https://github.com/wei18/local-composite-action).
+A GitHub Action to conveniently reference local Composite Actions!
 
-## Versions
+## ✨ Features
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| 1.1.0 | [`1.1.0`](https://github.com/chainguard-actions/wei18-local-composite-action/tree/1.1.0) | [`f5d8b35`](https://github.com/wei18/local-composite-action/commit/f5d8b35b962bcfab54c17b89b242d5dec0c1ea14) |
-| 1.1.1 | [`1.1.1`](https://github.com/chainguard-actions/wei18-local-composite-action/tree/1.1.1) | [`2311f70`](https://github.com/wei18/local-composite-action/commit/2311f70ec33ffd02ee95b60eaad4de575f55425a) |
-| 1.2.0 | [`1.2.0`](https://github.com/chainguard-actions/wei18-local-composite-action/tree/1.2.0) | [`797a225`](https://github.com/wei18/local-composite-action/commit/797a2250a683f95ea4e5f0ef455a66ec1e2cee08) |
+- ✅ Automatically resolves the local composite action path
+- ✅ Creates symlinks to support `uses: ./local/path` references
+- ✅ Compatible with default GitHub Actions behavior
+- ✅ Supports `.yaml` and `.yml`
+
+---
+
+## 🔧 Usage
+
+### Step 1: Add this action to your composite action
+
+```yaml
+- name: Resolve local composite action path
+  uses: wei18/local-composite-action@main
+  with:
+    composite_action_path: ${{ github.action_path }}
+    composite_action_repository: ${{ github.action_repository }}
+```
+
+### Step 2: Use local path to call the composite action
+
+```yaml
+- name: Run local composite action
+  uses: ./../org/repo/.github/composite-actions/example/just-composite-action
+```
+> [!IMPORTANT] 
+> Adjust the relative path based on the symlink location (typically one level above `$GITHUB_WORKSPACE`).
+>
+> This version emphasizes that `./../` is required and clarifies why it needs to be used.
+
+---
+
+## 📥 Inputs
+
+| Name                     | Description                                 | Required | Default        |
+|--------------------------|---------------------------------------------|----------|----------------|
+| `composite_action_path`  | The actual path to the composite action      | ✅       | –              |
+| `composite_action_repository` | The repository name in the form of `org/repo` | ✅       | –              |
+| `action_filename`        | The filename for the composite action (`.yml` or `.yaml`) | ❌       | `action.yml`   |
+
+---
+
+## 🧪 Example
+https://github.com/Wei18/local-composite-action/blob/9ccc99757989905871bacddf88f8a95215bdc9dc/.github/composite-actions/example/action.yml#L1-L17
+
+---
+
+## 💡 Why this?
+
+In GitHub Actions, the `composite` action supports `uses: ./local-path`, but when dealing with monorepos or complex path references, symlinks may not exist, causing failures. This tool helps automatically create the required symlinks, making the references work seamlessly!
+
+---
+
+## 📄 License
+
+MIT © [wei18](https://github.com/wei18)
 
 ## Privacy
 

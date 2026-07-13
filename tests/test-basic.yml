@@ -1,0 +1,44 @@
+name: Test basic symlink creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: push
+      GITHUB_REF: refs/heads/main
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # The action's step sets GITHUB_WORKSPACE from github.workspace (not our env var).
+      # Symlink is created at: dirname(github.workspace)/org/repo -> TARGET_PATH
+      # We set up COMPOSITE_ACTION_PATH so that org/repo appears in its hierarchy.
+      - name: Set up fixture directories
+        run: |
+          mkdir -p /tmp/runner/myorg/myrepo/v1
+
+      - id: action
+        uses: .
+        with:
+          composite_action_path: /tmp/runner/myorg/myrepo/v1
+          composite_action_repository: myorg/myrepo
+
+      - name: Assert symlink was created
+        run: |
+          # The action creates the symlink at dirname(GITHUB_WORKSPACE)/myorg/myrepo
+          LINK_ROOT="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$LINK_ROOT/myorg/myrepo"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "Expected symlink at: $SYMLINK_PATH"
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH"
+            ls -la "$LINK_ROOT/" || true
+            exit 1
+          fi
+          TARGET="$(readlink "$SYMLINK_PATH")"
+          echo "Symlink target: $TARGET"
+          if [ "$TARGET" != "/tmp/runner/myorg/myrepo/v1" ]; then
+            echo "FAIL: expected symlink to point to /tmp/runner/myorg/myrepo/v1, got $TARGET"
+            exit 1
+          fi
+          echo "PASS"
