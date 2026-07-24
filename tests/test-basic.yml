@@ -4,41 +4,39 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_EVENT_NAME: push
-      GITHUB_REF: refs/heads/main
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # The action's step sets GITHUB_WORKSPACE from github.workspace (not our env var).
-      # Symlink is created at: dirname(github.workspace)/org/repo -> TARGET_PATH
-      # We set up COMPOSITE_ACTION_PATH so that org/repo appears in its hierarchy.
-      - name: Set up fixture directories
+      - name: Set up directory structure for action
         run: |
-          mkdir -p /tmp/runner/myorg/myrepo/v1
+          # The action walks up from COMPOSITE_ACTION_PATH looking for a dir
+          # matching org/repo pattern, then expects exactly one subdir inside.
+          # We build paths relative to GITHUB_WORKSPACE so we know where things are.
+          # The symlink will be created at: $(dirname $GITHUB_WORKSPACE)/wei18/my-action
+          mkdir -p "$GITHUB_WORKSPACE/_action/wei18/my-action/v1.0.0"
 
       - id: action
         uses: .
         with:
-          composite_action_path: /tmp/runner/myorg/myrepo/v1
-          composite_action_repository: myorg/myrepo
+          composite_action_path: ${{ github.workspace }}/_action/wei18/my-action/v1.0.0
+          composite_action_repository: wei18/my-action
 
       - name: Assert symlink was created
         run: |
-          # The action creates the symlink at dirname(GITHUB_WORKSPACE)/myorg/myrepo
           LINK_ROOT="$(dirname "$GITHUB_WORKSPACE")"
-          SYMLINK_PATH="$LINK_ROOT/myorg/myrepo"
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          echo "Expected symlink at: $SYMLINK_PATH"
+          SYMLINK_PATH="$LINK_ROOT/wei18/my-action"
+          echo "Checking symlink at: $SYMLINK_PATH"
           if [ ! -L "$SYMLINK_PATH" ]; then
             echo "FAIL: expected symlink at $SYMLINK_PATH"
             ls -la "$LINK_ROOT/" || true
             exit 1
           fi
+          echo "PASS: symlink exists at $SYMLINK_PATH"
           TARGET="$(readlink "$SYMLINK_PATH")"
           echo "Symlink target: $TARGET"
-          if [ "$TARGET" != "/tmp/runner/myorg/myrepo/v1" ]; then
-            echo "FAIL: expected symlink to point to /tmp/runner/myorg/myrepo/v1, got $TARGET"
+          EXPECTED="$GITHUB_WORKSPACE/_action/wei18/my-action/v1.0.0"
+          if [ "$TARGET" != "$EXPECTED" ]; then
+            echo "FAIL: expected symlink target '$EXPECTED' but got '$TARGET'"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: symlink target is correct"

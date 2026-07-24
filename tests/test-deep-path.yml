@@ -1,0 +1,42 @@
+name: Test symlink creation with deep composite action path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up deep directory structure for action
+        run: |
+          # Simulate a realistic path like:
+          # $GITHUB_WORKSPACE/_action/wei18/helper-action/main/composite-actions/action1
+          # The action walks up from this path to find the wei18/helper-action dir,
+          # then expects exactly one subdir inside helper-action (which is "main").
+          mkdir -p "$GITHUB_WORKSPACE/_action/wei18/helper-action/main/composite-actions/action1"
+
+      - id: action
+        uses: .
+        with:
+          composite_action_path: ${{ github.workspace }}/_action/wei18/helper-action/main/composite-actions/action1
+          composite_action_repository: wei18/helper-action
+
+      - name: Assert symlink was created at correct location
+        run: |
+          LINK_ROOT="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$LINK_ROOT/wei18/helper-action"
+          echo "Checking symlink at: $SYMLINK_PATH"
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH"
+            ls -la "$LINK_ROOT/" || true
+            exit 1
+          fi
+          echo "PASS: symlink exists"
+          TARGET="$(readlink "$SYMLINK_PATH")"
+          echo "Symlink target: $TARGET"
+          EXPECTED="$GITHUB_WORKSPACE/_action/wei18/helper-action/main"
+          if [ "$TARGET" != "$EXPECTED" ]; then
+            echo "FAIL: expected symlink target '$EXPECTED' but got '$TARGET'"
+            exit 1
+          fi
+          echo "PASS: symlink target is correct"

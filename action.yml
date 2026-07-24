@@ -36,7 +36,8 @@ runs:
         COMPOSITE_ACTION_PATH: ${{ inputs.composite_action_path }}
         COMPOSITE_ACTION_REPOSITORY: ${{ inputs.composite_action_repository }}
         GITHUB_WORKSPACE: ${{ github.workspace }}
-      run: "echo \"::group::\U0001F517 Starting resolve-action-symlink\"\nbash \"$GITHUB_ACTION_PATH\"/resolve-action-symlink.bash\necho \"::endgroup::\"\n"
+        ACTION_PATH: ${{ github.action_path }}
+      run: "echo \"::group::\U0001F517 Starting resolve-action-symlink\"\nbash \"$ACTION_PATH/resolve-action-symlink.bash\"\necho \"::endgroup::\"\n"
 branding:
   icon: 'arrow-right'
   color: 'green'
