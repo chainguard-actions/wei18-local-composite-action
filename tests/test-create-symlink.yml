@@ -1,0 +1,38 @@
+name: Test find and create symlink
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up fake action directory structure
+        run: |
+          # Create a fake _actions directory structure that mimics the GitHub runner
+          # The action traverses parent directories looking for org/repo pattern
+          mkdir -p /tmp/fake_actions/_actions/testorg/testrepo/v1/some/nested/path
+          echo "fake action content" > /tmp/fake_actions/_actions/testorg/testrepo/v1/action.yml
+
+      - name: Run action with path matching org/repo in parent dirs
+        id: action
+        uses: .
+        with:
+          action_repository: testorg/testrepo
+          action_path: /tmp/fake_actions/_actions/testorg/testrepo/v1/some/nested/path
+
+      - name: Assert symlink was created
+        run: |
+          # The action creates a symlink at $ROOT_DIR/$ACTION_REPOSITORY
+          # ROOT_DIR is dirname of GITHUB_WORKSPACE
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/testorg/testrepo"
+          echo "Checking symlink at: $SYMLINK_PATH"
+          if [ -L "$SYMLINK_PATH" ]; then
+            echo "PASS: symlink exists at $SYMLINK_PATH"
+            echo "Symlink target: $(readlink -f "$SYMLINK_PATH")"
+          else
+            echo "FAIL: expected symlink at $SYMLINK_PATH"
+            ls -la "$ROOT_DIR/" || true
+            exit 1
+          fi

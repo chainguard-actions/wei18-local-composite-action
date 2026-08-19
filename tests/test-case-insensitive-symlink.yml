@@ -1,0 +1,47 @@
+name: Test case-insensitive symlink creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up fake action directory with mixed-case org/repo
+        run: |
+          # Create a fake directory structure with mixed-case org and repo names
+          mkdir -p /tmp/fake_actions/_actions/TestOrg/TestRepo/v1
+          echo "fake action content" > /tmp/fake_actions/_actions/TestOrg/TestRepo/v1/action.yml
+
+      - name: Run action with mixed-case action_repository
+        id: action
+        uses: .
+        with:
+          action_repository: TestOrg/TestRepo
+          action_path: /tmp/fake_actions/_actions/TestOrg/TestRepo/v1
+
+      - name: Assert both original and lowercase symlinks were created
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_ORIG="$ROOT_DIR/TestOrg/TestRepo"
+          SYMLINK_LOWER="$ROOT_DIR/testorg/testrepo"
+
+          echo "Checking original-case symlink at: $SYMLINK_ORIG"
+          if [ -L "$SYMLINK_ORIG" ]; then
+            echo "PASS: original-case symlink exists at $SYMLINK_ORIG"
+          else
+            echo "FAIL: expected original-case symlink at $SYMLINK_ORIG"
+            ls -la "$ROOT_DIR/" || true
+            exit 1
+          fi
+
+          echo "Checking lowercase symlink at: $SYMLINK_LOWER"
+          if [ -L "$SYMLINK_LOWER" ]; then
+            echo "PASS: lowercase symlink exists at $SYMLINK_LOWER"
+          else
+            echo "FAIL: expected lowercase symlink at $SYMLINK_LOWER"
+            ls -la "$ROOT_DIR/" || true
+            exit 1
+          fi
+
+          echo "PASS: both symlinks created correctly"

@@ -1,0 +1,40 @@
+name: Test fallback _actions directory search
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up fake _actions directory structure for fallback search
+        run: |
+          # Create a structure where the action_path itself is in a different location
+          # but the _actions dir contains the target org/repo
+          mkdir -p /tmp/runner/_actions/myorg/myrepo/abc123
+          echo "fake action content" > /tmp/runner/_actions/myorg/myrepo/abc123/action.yml
+          # The action_path points to THIS action (local-composite-action), not myorg/myrepo
+          # So the parent-traversal won't find myorg/myrepo, triggering the fallback
+          mkdir -p /tmp/runner/_actions/wei18/local-composite-action/v1
+          echo "this action" > /tmp/runner/_actions/wei18/local-composite-action/v1/action.yml
+
+      - name: Run action using fallback _actions directory search
+        id: action
+        uses: .
+        with:
+          action_repository: myorg/myrepo
+          action_path: /tmp/runner/_actions/wei18/local-composite-action/v1
+
+      - name: Assert symlink was created via fallback search
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/myorg/myrepo"
+          echo "Checking symlink at: $SYMLINK_PATH"
+          if [ -L "$SYMLINK_PATH" ]; then
+            echo "PASS: symlink exists at $SYMLINK_PATH"
+            echo "Symlink target: $(readlink -f "$SYMLINK_PATH")"
+          else
+            echo "FAIL: expected symlink at $SYMLINK_PATH"
+            ls -la "$ROOT_DIR/" || true
+            exit 1
+          fi
