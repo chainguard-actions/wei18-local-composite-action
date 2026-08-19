@@ -1,0 +1,9 @@
+name: Just a composite action
+
+runs:
+  using: "composite"
+  steps:
+    - uses: wei18/local-composite-action@3e6f017c4bf7f9451fc0b6d987d47507fa401aa3 # main
+    
+    - shell: bash
+      run: echo "Just a composite action"

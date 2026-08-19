@@ -7,20 +7,26 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Set up directory that does NOT match the action_repository
+        run: |
+          # Create a path that does NOT contain the org/repo pattern
+          mkdir -p /tmp/someotherorg/someotherrepo/hash/action
+
       - id: action
         uses: .
         with:
-          action_path: "/tmp/some/unrelated/path"
-          action_repository: "myorg/myrepo"
+          # action_path does not contain 'myorg/myrepo' in its hierarchy
+          action_path: /tmp/someotherorg/someotherrepo/hash/action
+          action_repository: myorg/myrepo
         continue-on-error: true
 
-      - name: Assert action failed when repo not found in path
+      - name: Assert action failed with not-found error
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
-          echo "outcome: $OUTCOME"
+          echo "action outcome: $OUTCOME"
           if [ "$OUTCOME" != "failure" ]; then
-            echo "FAIL: expected action to fail when org/repo not found in action_path"
+            echo "FAIL: expected action to fail when repository not found in path, but outcome was '$OUTCOME'"
             exit 1
           fi
-          echo "PASS: action correctly failed when repository not found in path"
+          echo "PASS: action correctly failed when action repository not found in path"

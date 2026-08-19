@@ -1,0 +1,34 @@
+name: Test case-insensitive action repository matching
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up lowercase directory structure
+        run: |
+          # Create lowercase directory structure
+          mkdir -p /tmp/myorg/myrepo/abc456/subaction
+          echo "fake action" > /tmp/myorg/myrepo/abc456/subaction/action.yml
+
+      - id: action
+        uses: .
+        with:
+          # Provide UPPERCASE action_repository — the action lowercases both sides before comparing
+          action_path: /tmp/myorg/myrepo/abc456/subaction
+          action_repository: MyOrg/MyRepo
+
+      - name: Assert symlink was created despite uppercase input
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          # The action lowercases the org/repo from the input: MyOrg→myorg, MyRepo→myrepo
+          SYMLINK_PATH="$ROOT_DIR/MyOrg/MyRepo"
+          echo "Checking symlink at: $SYMLINK_PATH"
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH but not found"
+            ls -la "$ROOT_DIR/" 2>/dev/null || true
+            exit 1
+          fi
+          echo "PASS: symlink created correctly with case-insensitive matching"

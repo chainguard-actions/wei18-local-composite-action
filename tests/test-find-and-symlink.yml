@@ -1,0 +1,53 @@
+name: Test find action repository and create symlink
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up fake action directory structure
+        run: |
+          # Create a directory structure matching org/repo/hash/action pattern
+          # The action traverses parents looking for grandparent==org and parent==repo
+          mkdir -p /tmp/testorg/testrepo/abc123/myaction
+          echo "fake action content" > /tmp/testorg/testrepo/abc123/myaction/action.yml
+
+      - id: action
+        uses: .
+        with:
+          # action_path points to a directory whose grandparent=org, parent=repo
+          # structure: /tmp/testorg/testrepo/abc123/myaction
+          # traversal: current=abc123, parent=testrepo, grandparent=testorg → match!
+          action_path: /tmp/testorg/testrepo/abc123/myaction
+          action_repository: testorg/testrepo
+
+      - name: Assert symlink was created
+        run: |
+          # The action creates a symlink at ROOT_DIR/ACTION_REPOSITORY
+          # ROOT_DIR = dirname(GITHUB_WORKSPACE)
+          # SYMLINK_PATH = ROOT_DIR/testorg/testrepo
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/testorg/testrepo"
+          echo "Checking symlink at: $SYMLINK_PATH"
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH but not found"
+            ls -la "$ROOT_DIR/testorg/" 2>/dev/null || echo "(testorg dir not found)"
+            exit 1
+          fi
+          echo "PASS: symlink exists at $SYMLINK_PATH"
+
+      - name: Assert symlink points to correct target
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/testorg/testrepo"
+          TARGET="$(readlink "$SYMLINK_PATH")"
+          echo "Symlink target: $TARGET"
+          # The action sets path to the directory whose parent=repo, grandparent=org
+          # That is /tmp/testorg/testrepo/abc123
+          if [ "$TARGET" != "/tmp/testorg/testrepo/abc123" ]; then
+            echo "FAIL: expected symlink target '/tmp/testorg/testrepo/abc123' but got '$TARGET'"
+            exit 1
+          fi
+          echo "PASS: symlink points to correct target"
