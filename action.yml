@@ -78,7 +78,7 @@ runs:
           GRANDPARENT_NAME="$(basename "$GRANDPARENT")"
 
           if [[ "$PARENT_NAME" == "$REPO" && "$GRANDPARENT_NAME" == "$ORG" ]]; then
-            safe_current=$(printf '%s' "$CURRENT" | tr -d '\n\r')
+            safe_current="$(printf '%s' "$CURRENT" | tr -d '\n\r')"
             echo "path=$safe_current" >> "$GITHUB_OUTPUT"
             exit 0
           fi

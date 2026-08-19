@@ -1,0 +1,51 @@
+name: Test basic symlink creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup fake action directory structure
+        run: |
+          # Create a directory structure that mimics the GitHub Actions runner:
+          # /_actions/<org>/<repo>/<ref>/<action-subpath>
+          # The action traverses up from action_path looking for org/repo in the hierarchy
+          mkdir -p /tmp/fake-runner/wei18/local-composite-action/abc123/subdir
+          echo "Created fake runner directory structure"
+          ls -la /tmp/fake-runner/wei18/local-composite-action/
+
+      - id: action
+        uses: .
+        with:
+          # action_path points into the fake structure; the action will walk up
+          # and find wei18/local-composite-action in the hierarchy
+          action_path: /tmp/fake-runner/wei18/local-composite-action/abc123/subdir
+          action_repository: wei18/local-composite-action
+
+      - name: Assert symlink was created
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/wei18/local-composite-action"
+          echo "Checking for symlink at: $SYMLINK_PATH"
+          if [ ! -L "$SYMLINK_PATH" ]; then
+            echo "FAIL: expected symlink at $SYMLINK_PATH but it does not exist"
+            ls -la "$ROOT_DIR/wei18/" 2>/dev/null || echo "(wei18 dir not found)"
+            exit 1
+          fi
+          echo "PASS: symlink exists at $SYMLINK_PATH"
+          ls -la "$SYMLINK_PATH"
+
+      - name: Assert symlink points to correct target
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          SYMLINK_PATH="$ROOT_DIR/wei18/local-composite-action"
+          TARGET="$(readlink "$SYMLINK_PATH")"
+          echo "Symlink target: $TARGET"
+          EXPECTED="/tmp/fake-runner/wei18/local-composite-action/abc123"
+          if [ "$TARGET" != "$EXPECTED" ]; then
+            echo "FAIL: expected symlink to point to '$EXPECTED' but got '$TARGET'"
+            exit 1
+          fi
+          echo "PASS: symlink points to correct target"

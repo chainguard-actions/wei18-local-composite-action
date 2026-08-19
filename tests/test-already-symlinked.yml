@@ -1,4 +1,4 @@
-name: Test already-symlinked path - skip remaining steps
+name: Test already symlinked path detection
 on:
   workflow_dispatch:
 jobs:
@@ -7,14 +7,20 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Setup fake action path that looks already-symlinked
+        run: |
+          # Create a directory that contains './../' in its path representation
+          # The action checks if ACTION_PATH contains './../'
+          mkdir -p /tmp/fake-actions/wei18/local-composite-action/v1
+          echo "Created fake action path"
+
       - id: action
         uses: .
         with:
+          # This path contains './../' which triggers the "already symlinked" branch
+          action_path: /tmp/fake-actions/./../wei18/local-composite-action/v1
           action_repository: wei18/local-composite-action
-          # action_path contains './../' which signals it's already a local symlinked path
-          action_path: /some/path/./../wei18/local-composite-action/action
 
-      - name: Assert action completed without error (symlink detection skipped remaining steps)
+      - name: Assert action completed successfully (already-symlinked path detected)
         run: |
-          echo "PASS: action completed successfully when action_path contains ./../"
-          echo "The action detected the existing symlink and skipped find/create steps."
+          echo "PASS: action completed without error, already-symlinked path was detected"
