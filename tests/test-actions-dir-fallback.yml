@@ -1,0 +1,39 @@
+name: Test _actions directory fallback lookup
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create fake _actions layout with two repositories
+        run: |
+          rm -rf /tmp/lca-fallback
+          mkdir -p /tmp/lca-fallback/_actions/wei18/local-composite-action/v1/sub
+          mkdir -p /tmp/lca-fallback/_actions/LcaFbOrg/LcaFbRepo/v2/nested
+          echo "fallback" > /tmp/lca-fallback/_actions/LcaFbOrg/LcaFbRepo/v2/marker.txt
+      - id: action
+        uses: .
+        with:
+          action_path: /tmp/lca-fallback/_actions/wei18/local-composite-action/v1/sub
+          action_repository: lcafborg/lcafbrepo
+      - name: Assert symlink points at the repository found under _actions
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          P="$ROOT_DIR/lcafborg/lcafbrepo"
+          if [ ! -L "$P" ]; then
+            echo "FAIL: $P is not a symlink"
+            exit 1
+          fi
+          ACTUAL="$(readlink -f "$P")"
+          EXPECTED="$(readlink -f /tmp/lca-fallback/_actions/LcaFbOrg/LcaFbRepo/v2)"
+          echo "actual: $ACTUAL expected: $EXPECTED"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "FAIL: wrong symlink target"
+            exit 1
+          fi
+          if [ "$(cat "$P/marker.txt")" != "fallback" ]; then
+            echo "FAIL: marker not readable"
+            exit 1
+          fi
+          echo "PASS"

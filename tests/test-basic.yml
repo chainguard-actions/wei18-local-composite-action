@@ -1,0 +1,40 @@
+name: Test basic symlink creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create fake action checkout layout
+        run: |
+          rm -rf /tmp/lca-basic
+          mkdir -p /tmp/lca-basic/_actions/LcaBasicOrg/LcaBasicRepo/v1/sub/action
+          echo "marker" > /tmp/lca-basic/_actions/LcaBasicOrg/LcaBasicRepo/v1/marker.txt
+      - id: action
+        uses: .
+        with:
+          action_path: /tmp/lca-basic/_actions/LcaBasicOrg/LcaBasicRepo/v1/sub/action
+          action_repository: LcaBasicOrg/LcaBasicRepo
+      - name: Assert symlinks created
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          EXPECTED="$(readlink -f /tmp/lca-basic/_actions/LcaBasicOrg/LcaBasicRepo/v1)"
+          for P in "$ROOT_DIR/LcaBasicOrg/LcaBasicRepo" "$ROOT_DIR/lcabasicorg/lcabasicrepo"; do
+            echo "checking $P"
+            if [ ! -L "$P" ]; then
+              echo "FAIL: $P is not a symlink"
+              exit 1
+            fi
+            ACTUAL="$(readlink -f "$P")"
+            echo "resolves to: $ACTUAL"
+            if [ "$ACTUAL" != "$EXPECTED" ]; then
+              echo "FAIL: expected $EXPECTED"
+              exit 1
+            fi
+            if [ "$(cat "$P/marker.txt")" != "marker" ]; then
+              echo "FAIL: marker not readable through symlink"
+              exit 1
+            fi
+          done
+          echo "PASS"

@@ -1,0 +1,42 @@
+name: Test running twice is idempotent
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create fake layout
+        run: |
+          rm -rf /tmp/lca-idem
+          mkdir -p /tmp/lca-idem/LcaIdemOrg/LcaIdemRepo/abc123/action
+      - id: first
+        uses: .
+        with:
+          action_path: /tmp/lca-idem/LcaIdemOrg/LcaIdemRepo/abc123/action
+          action_repository: LcaIdemOrg/LcaIdemRepo
+      - id: second
+        uses: .
+        with:
+          action_path: /tmp/lca-idem/LcaIdemOrg/LcaIdemRepo/abc123/action
+          action_repository: LcaIdemOrg/LcaIdemRepo
+      - name: Assert symlink valid and not nested
+        run: |
+          ROOT_DIR="$(dirname "$GITHUB_WORKSPACE")"
+          P="$ROOT_DIR/LcaIdemOrg/LcaIdemRepo"
+          ACTUAL="$(readlink -f "$P")"
+          EXPECTED="$(readlink -f /tmp/lca-idem/LcaIdemOrg/LcaIdemRepo/abc123)"
+          echo "actual: $ACTUAL"
+          if [ ! -L "$P" ] || [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "FAIL: expected symlink to $EXPECTED"
+            exit 1
+          fi
+          if [ -L "$EXPECTED/abc123" ]; then
+            echo "FAIL: nested symlink created inside target"
+            exit 1
+          fi
+          if [ ! -d "$P/action" ]; then
+            echo "FAIL: action dir not reachable"
+            exit 1
+          fi
+          echo "PASS"
